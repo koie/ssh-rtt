@@ -4,23 +4,29 @@ import argparse
 import random
 import statistics
 import subprocess
+import sys
 import time
 
 ssh_cmd = "ssh"
+cat_cmd = "cat"
 
 
-def ping(host, n):
+def ping(host, n, wait, size):
     print(f"PING {host}")
     rtts = []
-    args = [ssh_cmd, host, "cat"]
+    args = [ssh_cmd, host, cat_cmd]
     with subprocess.Popen(args=args,
                           shell=False,
                           stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE,
                           bufsize=0) as proc:
         for i in range(n+1):
+            if i > 0:
+                time.sleep(wait)
+            nonce = str(random.randint(10000000, 99999999)) + ("0" * size)
+            nonce = nonce[:size] + "\n"
+            nonce = nonce.encode()
             start = time.clock_gettime(time.CLOCK_REALTIME)
-            nonce = (str(random.randint(10000000, 99999999)) + "\n").encode()
             proc.stdin.write(nonce)
             while True:
                 nonce2 = proc.stdout.readline()
@@ -32,17 +38,36 @@ def ping(host, n):
                 rtts.append(rtt)
                 break
     rtts1 = rtts[1:]
-    mean = statistics.mean(rtts1)
-    std = statistics.stdev(rtts1, mean)
-    print(f"host={host}: avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
+    if len(rtts1) > 0:
+        mean = statistics.mean(rtts1)
+        std = statistics.stdev(rtts1, mean) if len(rtts1) >= 2 else 0
+        print(f"host={host}: avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ping over SSH")
+    parser.add_argument("-c", "--count",
+                        type=int,
+                        metavar="COUNT",
+                        default=10,
+                        help="count")
+    parser.add_argument("-i", "--interval",
+                        type=float,
+                        metavar="WAIT",
+                        default=1,
+                        help="interval")
+    parser.add_argument("-s", "--size",
+                        type=int,
+                        metavar="SIZE",
+                        default=3,
+                        help="count")
     parser.add_argument("hosts",
                         metavar="HOST",
                         nargs=argparse.REMAINDER,
                         help="")
     args = parser.parse_args()
+    if len(args.hosts) == 0:
+        parser.print_usage(sys.stderr)
+        sys.exit(1)
     for host in args.hosts:
-        ping(host, 10)
+        ping(host, args.count, args.interval, args.size)
