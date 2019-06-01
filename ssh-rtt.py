@@ -23,7 +23,9 @@ def ping(host, n, wait, size):
         for i in range(n+1):
             if i > 0:
                 time.sleep(wait)
-            nonce = str(random.randint(10000000, 99999999)) + ("0" * size)
+            nonce = ""
+            while len(nonce) < size:
+                nonce = nonce + str(random.randint(0,99999999))
             nonce = nonce[:size] + "\n"
             nonce = nonce.encode()
             start = time.clock_gettime(time.CLOCK_REALTIME)
