@@ -11,10 +11,11 @@ ssh_cmd = "ssh"
 cat_cmd = "cat"
 
 
-def ping(host, n, wait, size):
-    print(f"PING {host}")
+def ping(ssh_arg, n, wait, size):
+    hostname = " ".join(ssh_arg)
+    print(f"PING {hostname}")
     rtts = []
-    args = [ssh_cmd, host, cat_cmd]
+    args = [ssh_cmd] + ssh_arg + [cat_cmd]
     with subprocess.Popen(args=args,
                           shell=False,
                           stdin=subprocess.PIPE,
@@ -43,7 +44,7 @@ def ping(host, n, wait, size):
     if len(rtts1) > 0:
         mean = statistics.mean(rtts1)
         std = statistics.stdev(rtts1, mean) if len(rtts1) >= 2 else 0
-        print(f"host={host}: avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
+        print(f"host={hostname}: avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
 
 
 if __name__ == "__main__":
@@ -63,13 +64,9 @@ if __name__ == "__main__":
                         metavar="SIZE",
                         default=3,
                         help="count")
-    parser.add_argument("hosts",
+    parser.add_argument("host",
                         metavar="HOST",
-                        nargs=argparse.REMAINDER,
+                        nargs="+",
                         help="")
     args = parser.parse_args()
-    if len(args.hosts) == 0:
-        parser.print_usage(sys.stderr)
-        sys.exit(1)
-    for host in args.hosts:
-        ping(host, args.count, args.interval, args.size)
+    ping(args.host, args.count, args.interval, args.size)
