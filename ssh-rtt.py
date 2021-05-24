@@ -11,6 +11,7 @@ import time
 ssh_cmd = "ssh"
 cat_cmd = "cat"
 
+
 class VarState:
     # https://qpp.bitbucket.io/post/streaming_algorithm/
     def __init__(self):
@@ -19,12 +20,19 @@ class VarState:
         self.cur = 0
         self.m = 0
         self.s = 0
+        self.min = 0
+        self.max = 0
     def update(self, x):
         self.n += 1
         self.pre = self.cur
         self.cur = x / self.n + (1 - 1.0 / self.n) * self.cur
         self.m += (x - self.pre) * (x - self.cur)
         self.s += x
+        if self.n > 1:
+            self.min = min(self.min, x)
+            self.max = max(self.max, x)
+        else:
+            self.min = self.max = x
     def avg(self):
         return self.s / self.n
     def var(self):
@@ -33,10 +41,10 @@ class VarState:
         import math
         return math.sqrt(self.var())
 
+
 def ping(ssh_arg, n, wait, size):
     hostname = " ".join(ssh_arg)
     print(f"PING {hostname}")
-    rtts = []
     vs = VarState()
     args = [ssh_cmd] + ssh_arg + [cat_cmd]
     with subprocess.Popen(args=args,
@@ -60,21 +68,14 @@ def ping(ssh_arg, n, wait, size):
                     continue
                 end = time.clock_gettime(time.CLOCK_REALTIME)
                 rtt = end - start
-                if n > 0:
-                    rtts.append(rtt)
+                print(f"seq={i} time={rtt*1000:.3f} ms", end="")
                 if i > 0:
                     vs.update(rtt)
                     mean = vs.avg()
                     std = vs.stddev()
-                    print(f"seq={i} time={rtt*1000:.3f} ms, avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
-                else:
-                    print(f"seq={i} time={rtt*1000:.3f} ms")
+                    print(f", min={vs.min*1000:.3f} ms, avg={mean*1000:.3f} ms, max={vs.max*1000:.3f} ms, std={std*1000:.3f} ms", end="")
+                print("")
                 break
-    rtts1 = rtts[1:]
-    if len(rtts1) > 0:
-        mean = statistics.mean(rtts1)
-        std = statistics.stdev(rtts1, mean) if len(rtts1) >= 2 else 0
-        print(f"host={hostname}: avg={mean*1000:.3f} ms, std={std*1000:.3f} ms")
 
 
 if __name__ == "__main__":
