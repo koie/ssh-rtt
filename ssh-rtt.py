@@ -6,6 +6,7 @@ import statistics
 import subprocess
 import sys
 import time
+import itertools
 
 ssh_cmd = "ssh"
 cat_cmd = "cat"
@@ -21,7 +22,7 @@ def ping(ssh_arg, n, wait, size):
                           stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE,
                           bufsize=0) as proc:
-        for i in range(n+1):
+        for i in (range(n+1) if n > 0 else itertools.count(0)):
             if i > 0:
                 time.sleep(wait)
             nonce = ""
