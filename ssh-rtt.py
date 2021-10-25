@@ -84,17 +84,17 @@ if __name__ == "__main__":
                         type=int,
                         metavar="COUNT",
                         default=10,
-                        help="count")
+                        help="")
     parser.add_argument("-i", "--interval",
                         type=float,
                         metavar="WAIT",
                         default=1,
-                        help="interval")
+                        help="")
     parser.add_argument("-s", "--size",
                         type=int,
                         metavar="SIZE",
                         default=3,
-                        help="count")
+                        help="")
     parser.add_argument("host",
                         metavar="HOST",
                         nargs="+",
