@@ -11,6 +11,8 @@ import time
 ssh_cmd = "ssh"
 cat_cmd = "cat"
 
+coloring = True
+
 
 class VarState:
     # https://qpp.bitbucket.io/post/streaming_algorithm/
@@ -42,6 +44,18 @@ class VarState:
         return math.sqrt(self.var())
 
 
+class Color:
+    BLACK = '\033[30m'
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    PURPLE = '\033[35m'
+    CYAN = '\033[36m'
+    WHITE = '\033[37m'
+    END = '\033[0m'
+
+
 def ping(ssh_arg, n, wait, size):
     hostname = " ".join(ssh_arg)
     print(f"PING {hostname}", flush=True)
@@ -68,13 +82,19 @@ def ping(ssh_arg, n, wait, size):
                     continue
                 end = time.clock_gettime(time.CLOCK_REALTIME)
                 rtt = end - start
-                print(f"seq={i} time={rtt*1000:.3f} ms", end="")
+                if coloring and i >= 10 and rtt > mean + std:
+                    if rtt > mean + 2 * std:
+                        print(Color.RED, end="")
+                    else:
+                        print(Color.YELLOW, end="")
                 if i > 0:
-                    vs.update(rtt)
+                    vs.update(rtt)  # because first rtt may be slow, discard it.
                     mean = vs.avg()
                     std = vs.stddev()
+                print(f"seq={i} time={rtt*1000:.3f} ms", end="")
+                if i > 0:
                     print(f", min={vs.min*1000:.3f} ms, avg={mean*1000:.3f} ms, max={vs.max*1000:.3f} ms, std={std*1000:.3f} ms", end="")
-                print("", flush=True)
+                print(Color.END, flush=True)
                 break
 
 
@@ -95,9 +115,23 @@ if __name__ == "__main__":
                         metavar="SIZE",
                         default=3,
                         help="")
+    parser.add_argument("--color",
+                        action="store_true",
+                        help="")
+    parser.add_argument("--no-color",
+                        action="store_true",
+                        help="")
     parser.add_argument("host",
                         metavar="HOST",
                         nargs="+",
                         help="")
     args = parser.parse_args()
+
+    if args.color:
+        coloring = True
+    elif args.no_color:
+        coloring = False
+    else:
+        coloring = sys.stdout.isatty()
+
     ping(args.host, args.count, args.interval, args.size)
