@@ -44,7 +44,7 @@ class VarState:
 
 def ping(ssh_arg, n, wait, size):
     hostname = " ".join(ssh_arg)
-    print(f"PING {hostname}")
+    print(f"PING {hostname}", flush=True)
     vs = VarState()
     args = [ssh_cmd] + ssh_arg + [cat_cmd]
     with subprocess.Popen(args=args,
@@ -74,7 +74,7 @@ def ping(ssh_arg, n, wait, size):
                     mean = vs.avg()
                     std = vs.stddev()
                     print(f", min={vs.min*1000:.3f} ms, avg={mean*1000:.3f} ms, max={vs.max*1000:.3f} ms, std={std*1000:.3f} ms", end="")
-                print("")
+                print("", flush=True)
                 break
 
 
