@@ -12,6 +12,8 @@ ssh_cmd = "ssh"
 cat_cmd = "cat"
 
 coloring = True
+threshold1 = "> mean + std"
+threshold2 =  "> mean + 2 * std"
 
 
 class VarState:
@@ -82,11 +84,13 @@ def ping(ssh_arg, n, wait, size):
                     continue
                 end = time.clock_gettime(time.CLOCK_REALTIME)
                 rtt = end - start
-                if coloring and i >= 10 and rtt > mean + std:
-                    if rtt > mean + 2 * std:
+                if coloring and i >= 10:
+                    if eval("rtt " + threshold2):
                         print(Color.RED, end="")
-                    else:
+                    elif eval("rtt " + threshold1):
                         print(Color.YELLOW, end="")
+                    else:
+                        print(Color.END, end="")
                 if i > 0:
                     vs.update(rtt)  # because first rtt may be slow, discard it.
                     mean = vs.avg()
@@ -121,6 +125,14 @@ if __name__ == "__main__":
     parser.add_argument("--no-color",
                         action="store_true",
                         help="")
+    parser.add_argument("--threshold1",
+                        type=str,
+                        default=threshold1,
+                        help="")
+    parser.add_argument("--threshold2",
+                        type=str,
+                        default=threshold2,
+                        help="")
     parser.add_argument("host",
                         metavar="HOST",
                         nargs="+",
@@ -133,5 +145,8 @@ if __name__ == "__main__":
         coloring = False
     else:
         coloring = sys.stdout.isatty()
+
+    threshold1 = args.threshold1
+    threshold2 = args.threshold2
 
     ping(args.host, args.count, args.interval, args.size)
