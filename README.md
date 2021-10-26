@@ -4,6 +4,25 @@
 
 ```
 % chmod +x ssh-rtt.py
+% ./ssh-rtt.py -h
+usage: ssh-rtt.py [-h] [-c COUNT] [-i WAIT] [-s SIZE] [--color] [--no-color]
+                  [--threshold1 THRESHOLD1] [--threshold2 THRESHOLD2]
+                  HOST [HOST ...]
+
+Ping over SSH
+
+positional arguments:
+  HOST
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c COUNT, --count COUNT
+  -i WAIT, --interval WAIT
+  -s SIZE, --size SIZE
+  --color
+  --no-color
+  --threshold1 THRESHOLD1
+  --threshold2 THRESHOLD2
 % ./ssh-rtt.py -i 0.3 -- -v localhost
 PING -v localhost
 ...
