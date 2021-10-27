@@ -79,6 +79,9 @@ def gen_nonce(size):
 
 
 def ping(ssh_arg, n, wait, size):
+    thresholds = [(threshold2, Color.RED),
+                  (threshold1, Color.YELLOW)]
+
     hostname = " ".join(ssh_arg)
     print(f"PING {hostname}", flush=True)
     args = ssh_cmd + ssh_arg + cat_cmd
@@ -104,12 +107,11 @@ def ping(ssh_arg, n, wait, size):
 
             color = Color.END
             if coloring and i >= 10:
-                if local_eval("rtt " + threshold2,
+                for expr, col in thresholds:
+                    if local_eval("rtt " + expr,
                               i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
-                    color = Color.RED
-                elif local_eval("rtt " + threshold1,
-                                i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
-                    color = Color.YELLOW
+                        color = col
+                        break
 
             if i > 0:  # because first rtt may be slow, discard it.
                 vs.update(rtt)
