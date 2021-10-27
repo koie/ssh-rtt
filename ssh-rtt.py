@@ -2,18 +2,18 @@
 
 import argparse
 import itertools
+import math
 import random
-import statistics
 import subprocess
 import sys
 import time
 
-ssh_cmd = "ssh"
-cat_cmd = "cat"
+ssh_cmd = ["ssh"]
+cat_cmd = ["cat"]
 
 coloring = True
-threshold1 = "> mean + std"
-threshold2 =  "> mean + 2 * std"
+threshold1 = "> avg + std"
+threshold2 = "> avg + 2 * std"
 
 
 class VarState:
@@ -26,6 +26,7 @@ class VarState:
         self.s = 0
         self.min = 0
         self.max = 0
+
     def update(self, x):
         self.n += 1
         self.pre = self.cur
@@ -37,12 +38,16 @@ class VarState:
             self.max = max(self.max, x)
         else:
             self.min = self.max = x
+
     def avg(self):
+        if self.n == 0:
+            return None
         return self.s / self.n
+
     def var(self):
         return self.m / (self.n - 1) if self.n > 1 else 0
+
     def stddev(self):
-        import math
         return math.sqrt(self.var())
 
 
@@ -57,49 +62,74 @@ class Color:
     WHITE = '\033[37m'
     END = '\033[0m'
 
+    def decorate(text, color):
+        if color == Color.END:
+            return text
+        else:
+            return color + text + Color.END
+
+
+def gen_nonce(size):
+    nonce = ""
+    while len(nonce) < size:
+        nonce = nonce + str(random.randint(0, 99999999))
+    nonce = nonce[:size] + "\n"
+    return nonce.encode()
+
 
 def ping(ssh_arg, n, wait, size):
     hostname = " ".join(ssh_arg)
     print(f"PING {hostname}", flush=True)
-    vs = VarState()
-    args = [ssh_cmd] + ssh_arg + [cat_cmd]
+    args = ssh_cmd + ssh_arg + cat_cmd
     with subprocess.Popen(args=args,
                           shell=False,
                           stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE,
                           bufsize=0) as proc:
+        vs = VarState()
         for i in (range(n+1) if n > 0 else itertools.count(0)):
             if i > 0:
                 time.sleep(wait)
-            nonce = ""
-            while len(nonce) < size:
-                nonce = nonce + str(random.randint(0,99999999))
-            nonce = nonce[:size] + "\n"
-            nonce = nonce.encode()
+            nonce = gen_nonce(size)
             start = time.clock_gettime(time.CLOCK_REALTIME)
             proc.stdin.write(nonce)
             while True:
                 nonce2 = proc.stdout.readline()
-                if nonce2 != nonce:
-                    continue
-                end = time.clock_gettime(time.CLOCK_REALTIME)
-                rtt = end - start
-                if coloring and i >= 10:
-                    if eval("rtt " + threshold2):
-                        print(Color.RED, end="")
-                    elif eval("rtt " + threshold1):
-                        print(Color.YELLOW, end="")
-                    else:
-                        print(Color.END, end="")
-                if i > 0:
-                    vs.update(rtt)  # because first rtt may be slow, discard it.
-                    mean = vs.avg()
-                    std = vs.stddev()
-                print(f"seq={i} time={rtt*1000:.3f} ms", end="")
-                if i > 0:
-                    print(f", min={vs.min*1000:.3f} ms, avg={mean*1000:.3f} ms, max={vs.max*1000:.3f} ms, std={std*1000:.3f} ms", end="")
-                print(Color.END, flush=True)
-                break
+                if nonce2 == nonce:
+                    break
+                print(f"unexpected response: {nonce2}", flush=True)
+            end = time.clock_gettime(time.CLOCK_REALTIME)
+            rtt = end - start
+
+            color = Color.END
+            if coloring and i >= 10:
+                if local_eval("rtt " + threshold2,
+                              i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
+                    color = Color.RED
+                elif local_eval("rtt " + threshold1,
+                                i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
+                    color = Color.YELLOW
+
+            if i > 0:  # because first rtt may be slow, discard it.
+                vs.update(rtt)
+
+            output(color, i, rtt, vs.min, vs.avg(), vs.max, vs.stddev())
+
+
+def local_eval(expr, i, rtt, min, avg, max, std):
+    return eval(expr)
+
+
+def output(color, i, rtt, min, avg, max, std):
+    output = f"seq={i} "
+    output += Color.decorate(f"time={rtt*1000:.3f} ms", color)
+    if i > 0:
+        output += f", min={min*1000:.3f} ms"
+        output += f", avg={avg*1000:.3f} ms"
+        output += f", max={max*1000:.3f} ms"
+        if i > 1:
+            output += f", std={std*1000:.3f} ms"
+    print(output, flush=True)
 
 
 if __name__ == "__main__":
@@ -149,4 +179,7 @@ if __name__ == "__main__":
     threshold1 = args.threshold1
     threshold2 = args.threshold2
 
-    ping(args.host, args.count, args.interval, args.size)
+    try:
+        ping(args.host, args.count, args.interval, args.size)
+    except KeyboardInterrupt:
+        pass
