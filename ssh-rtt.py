@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
 import itertools
 import math
 import random
@@ -113,15 +114,16 @@ def ping(ssh_arg, n, wait, size):
             if i > 0:  # because first rtt may be slow, discard it.
                 vs.update(rtt)
 
-            output(color, i, rtt, vs.min, vs.avg(), vs.max, vs.stddev())
+            output(color, start, i, rtt, vs.min, vs.avg(), vs.max, vs.stddev())
 
 
 def local_eval(expr, i, rtt, min, avg, max, std):
     return eval(expr)
 
 
-def output(color, i, rtt, min, avg, max, std):
-    output = f"seq={i} "
+def output(color, now, i, rtt, min, avg, max, std):
+    output = str(datetime.datetime.fromtimestamp(now))
+    output += f", seq={i} "
     output += Color.decorate(f"time={rtt*1000:.3f} ms", color)
     if i > 0:
         output += f", min={min*1000:.3f} ms"
