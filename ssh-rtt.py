@@ -109,7 +109,7 @@ def ping(ssh_arg, n, wait, size):
             if coloring and i >= 10:
                 for expr, col in thresholds:
                     if local_eval("rtt " + expr,
-                              i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
+                                  i, rtt, vs.min, vs.avg(), vs.max, vs.stddev()):
                         color = col
                         break
 
