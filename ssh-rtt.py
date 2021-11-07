@@ -78,30 +78,37 @@ def gen_nonce(size):
     return nonce.encode()
 
 
+def read_nonce(s, nonce):
+    for k in range(100):
+        nonce2 = s.readline()
+        if nonce2 == nonce:
+            return
+        print(f"unexpected response: {nonce2}", flush=True)
+    raise RuntimeError("No nonce response")
+
+
 def ping(ssh_arg, n, wait, size):
     thresholds = [(threshold2, Color.RED),
                   (threshold1, Color.YELLOW)]
 
-    hostname = " ".join(ssh_arg)
-    print(f"PING {hostname}", flush=True)
     args = ssh_cmd + ssh_arg + cat_cmd
     with subprocess.Popen(args=args,
                           shell=False,
                           stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
                           bufsize=0) as proc:
         vs = VarState()
         for i in (range(n+1) if n > 0 else itertools.count(0)):
             if i > 0:
                 time.sleep(wait)
+            proc.poll()
+            if proc.returncode is not None:
+                raise RuntimeError(f"the connection has been terminated with {proc.returncode}")
             nonce = gen_nonce(size)
             start = time.clock_gettime(time.CLOCK_REALTIME)
             proc.stdin.write(nonce)
-            while True:
-                nonce2 = proc.stdout.readline()
-                if nonce2 == nonce:
-                    break
-                print(f"unexpected response: {nonce2}", flush=True)
+            read_nonce(proc.stdout, nonce)
             end = time.clock_gettime(time.CLOCK_REALTIME)
             rtt = end - start
 
@@ -153,6 +160,9 @@ if __name__ == "__main__":
                         metavar="SIZE",
                         default=3,
                         help="")
+    parser.add_argument("--reconnect",
+                        action="store_true",
+                        help="")
     parser.add_argument("--color",
                         action="store_true",
                         help="")
@@ -183,7 +193,17 @@ if __name__ == "__main__":
     threshold1 = args.threshold1
     threshold2 = args.threshold2
 
-    try:
-        ping(args.host, args.count, args.interval, args.size)
-    except KeyboardInterrupt:
-        pass
+    print(f"PING {' '.join(args.host)}", flush=True)
+
+    while True:
+        try:
+            ping(args.host, args.count, args.interval, args.size)
+            break
+        except KeyboardInterrupt:
+            break
+        except RuntimeError as e:
+            if not args.reconnect:
+                raise e
+            print(f"error: {e}")
+        print("reconnect", flush=True)
+
