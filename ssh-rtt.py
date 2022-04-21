@@ -132,8 +132,8 @@ def local_eval(expr, i, rtt, min, avg, max, std):
 
 def output(color, now, i, rtt, min, avg, max, std):
     output = str(datetime.datetime.fromtimestamp(now))
-    output += f", seq={i} "
-    output += Color.decorate(f"time={rtt*1000:.3f} ms", color)
+    output += f", seq={i}"
+    output += Color.decorate(f", time={rtt*1000:.3f} ms", color)
     if i > 0:
         output += f", min={min*1000:.3f} ms"
         output += f", avg={avg*1000:.3f} ms"
